@@ -1,10 +1,32 @@
-from typing import Counter
+# OpenCV 
 import cv2
+# os module for working with directories
 import os
+# numpy for numpy arrays
 import numpy as np
+# pyrebase for uploading data to firebase
+import pyrebase
 
+# configuring for firebase
+config = {
+    "apiKey": "AIzaSyC8SG3R3H1VTVAscE94VvS870CL0pfMWoE",
+    "authDomain": "casestudy-9226c.firebaseapp.com",
+    "projectId": "casestudy-9226c",
+    "storageBucket": "casestudy-9226c.appspot.com",
+    "serviceAccount": "serviceAccountKey.json",
+    "databaseURL": ""
+}
+
+# initializing firebase_storage object
+firebase_storage = pyrebase.initialize_app(config)
+
+# creating only storage object because we are using only fire storage
+storage = firebase_storage.storage()
+
+# subjects dictionary to store all the student class data
 subjects = dict()
 
+# student class 
 class Student:
     def __init__(self,rollno,name,year,branch,section):
         self.rollno = rollno
@@ -13,36 +35,57 @@ class Student:
         self.branch = branch
         self.section = section
 
+# dectecting face from an image
 def detect_face(img):
+    # converting BGR images to GRAY
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    # creating a CascadeClassifier Object which is used for face detection
     face_cascade = cv2.CascadeClassifier('opencv-files/lbpcascade_frontalface.xml')
     faces = face_cascade.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5);
+    # if no faces found
     if (len(faces) == 0):
         return None, None
+    # considering only one face
     (x, y, w, h) = faces[0]
+    
+    # returning the face region on the image
     return gray[y:y+w, x:x+h], faces[0]
 
 def prepare_training_data(data_folder_path):
     
+    # listing all folders in the traiing data folder
     dirs = os.listdir(data_folder_path)
+    # faces list for appending faces
     faces = []
+    # labels list for appending labels
     labels = []
+    # for each folder in training folder
     for dir_name in dirs:
+        # storing label as dir_name which is roll no of student
         label = int(dir_name)
+        # path for the roll number folder of the student
         subject_dir_path = data_folder_path + "/" + dir_name
+        # listing all the images in roll number folder
         subject_images_names = os.listdir(subject_dir_path)
         
+        # for each image
         for image_name in subject_images_names:
+            # checking if any system files are present
             if image_name.startswith("."):
-                continue;
+                continue
+
             image_path = subject_dir_path + "/" + image_name
+            # reading the image
             image = cv2.imread(image_path)
             
+            # displaying 
             cv2.imshow("Training on image...", cv2.resize(image, (400, 500)))
             cv2.waitKey(100)
             
+            # detecing faces 
             face, rect = detect_face(image)
 
+            # if face found
             if face is not None:
                 faces.append(face)
                 labels.append(label)
@@ -51,12 +94,16 @@ def prepare_training_data(data_folder_path):
     cv2.waitKey(1)
     cv2.destroyAllWindows()
     
+    # faces list and labels list
     return faces, labels
 
 # function to collect training data for each student
 def collect_images(student):
+
+    # list to check whether roll number already exists
     rolllist = []
 
+    # reading subjects file and appending to rolllist
     f = open("subjects.txt",'r')
     while(1):
         l = f.readline()
@@ -66,15 +113,25 @@ def collect_images(student):
             temp = l.split(';')
             rolllist.append(temp[0])
     f.close()
+
+    # if roll number exists then return 0
     if student.rollno in rolllist:
         return 0
+    
+    # writing new student data to subject file
     f = open("subjects.txt",'a')
     f.write(student.rollno + ';' + student.name + ';' + student.year + ';' + student.branch + ';' + student.section + '\n')
     f.close()
+
+    # creating to folder(rollno) in training-data 
     path = os.path.join("training-data",student.rollno)
     os.mkdir(path)
+
+    # capturing from webcam
     cam = cv2.VideoCapture(0)
     img_counter = 1
+
+    # capturing 12 images
     while(img_counter<13):
         ret, frame = cam.read()
         if not ret:
@@ -83,13 +140,16 @@ def collect_images(student):
         cv2.imshow("test",frame)
         k = cv2.waitKey(1)
 
+        # for escape keystroke 
         if k%256 == 27:
             break
         
+        # for space keystroke
         elif k%256 == 32:
             img_name = "{}.jpg".format(img_counter)
             cv2.imwrite("%s/%s"%(path,img_name),frame)
             img_counter += 1
+
     cv2.destroyAllWindows()
     cv2.waitKey(1)
     cv2.destroyAllWindows()
@@ -97,6 +157,8 @@ def collect_images(student):
     
 # function to collect the test data using webcam for each event
 def addtestimage(event,subjects,face_recognizer):
+
+    # creating event folder in event path
     os.mkdir("test-data/"+event)
     cam = cv2.VideoCapture(0)
     img_counter = 0
@@ -160,6 +222,12 @@ def addtestimage(event,subjects,face_recognizer):
     cv2.destroyAllWindows()
     cv2.waitKey(1)
     cv2.destroyAllWindows()
+
+    
+    event_path = os.path.join("attendance",event+str(".txt"))
+
+    storage.child(event).put(event_path)
+
         
 def draw_rectangle(img, rect):
     (x, y, w, h) = rect
@@ -180,9 +248,6 @@ def predict(test_img,subjects):
     
     return img,label,confidence
 
-# collecting data from user
-n = int(input("Enter 1 if you want train or Enter 2 if you want to test: "))
-
 # collecting student details and collecting the training data
 def n1():
     roll = input("Enter Roll no: ")
@@ -196,10 +261,14 @@ def n1():
     if flag == 0:
         print("Rollno already Exists. Try different rollno ")
         n1()
-if n == 1:
-    n1()
+
 # collecting test data for each event
-if n == 2:
+def n2(face_recognizer):
+    events_list = os.listdir("test-data")
+    event = input("Enter Event name: ")
+    if event in events_list:
+        print("Event Already Exists")
+        n2(face_recognizer)
     subjects = dict()
     f = open("subjects.txt",'r')
     while(1):
@@ -209,7 +278,16 @@ if n == 2:
         x = x.split(';')
         subjects[int(x[0])] = [x[0],x[1],x[2],x[3],x[4][:-1]]
     f.close()
-    face_recognizer = cv2.face.LBPHFaceRecognizer_create()
-    event = input("Enter Event name: ")
     # calling function which collects the test data for each event.
     addtestimage(event,subjects,face_recognizer)
+
+# collecting data from user
+n = int(input("Enter 1 if you want train or Enter 2 if you want to test: "))
+if n == 1:
+    n1()
+if n == 2:
+    face_recognizer = cv2.face.LBPHFaceRecognizer_create()
+    n2(face_recognizer)
+
+
+   

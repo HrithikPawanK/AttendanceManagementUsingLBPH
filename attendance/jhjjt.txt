@@ -1,1 +1,0 @@
-rollno: 153 name: hrithik year: 3 branch: cse section: 3
