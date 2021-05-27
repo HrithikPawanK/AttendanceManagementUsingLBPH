@@ -79,8 +79,10 @@ def prepare_training_data(data_folder_path):
             image = cv2.imread(image_path)
             
             # displaying 
+            """
             cv2.imshow("Training on image...", cv2.resize(image, (400, 500)))
             cv2.waitKey(100)
+            """
             
             # detecing faces 
             face, rect = detect_face(image)
@@ -218,23 +220,21 @@ def addtestimage(event,subjects,face_recognizer):
         f.write(datafield[0] + attendance_list[data][0] + ' ' + datafield[1] + attendance_list[data][1] + ' ' + datafield[2] + attendance_list[data][2] + ' ' + datafield[3] + attendance_list[data][3] + ' ' + datafield[4] + attendance_list[data][4] + '\n')
     f.close()
 
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-    cv2.waitKey(1)
-    cv2.destroyAllWindows()
-
-    
     event_path = os.path.join("attendance",event+str(".txt"))
 
     storage.child(event).put(event_path)
 
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    cv2.waitKey(1)
+    cv2.destroyAllWindows()
         
 def draw_rectangle(img, rect):
     (x, y, w, h) = rect
-    cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
+    cv2.rectangle(img, (x, y), (x+w, y+h), (255, 0, 0), 2)
         
 def draw_text(img, text, x, y):
-    cv2.putText(img, text, (x, y), cv2.FONT_HERSHEY_PLAIN, 1.5, (0, 255, 0), 2)
+    cv2.putText(img, text, (x, y), cv2.FONT_HERSHEY_PLAIN, 1.5, (255, 0, 0), 2)
 
 def predict(test_img,subjects):
     img = test_img.copy()
